@@ -61,7 +61,8 @@ a Claude client later — the MCP side doesn't change either way, matching
 - [Ollama](https://ollama.com), with a tool-calling-capable model pulled —
   this project defaults to `gemma4:e2b-it-q4_K_M`; use `gemma4:e4b-it-q4_K_M`
   instead if your machine has more headroom (roughly 6GB+ free RAM for e2b,
-  9GB+ for e4b)
+  9GB+ for e4b — see "Memory behaviour" below for what that actually costs
+  while running)
 
 ## Running locally
 
@@ -88,6 +89,28 @@ go build -o dronefleet-agent ./cmd/agent
 
 Add `-watch 5m` to re-run the diagnosis every 5 minutes instead of exiting
 after one pass.
+
+## Memory behaviour
+
+The agent sends `keep_alive: "30s"` on every `/api/chat` call
+(`ollamaKeepAlive` in `internal/agent/agent.go`), so Ollama unloads the
+model 30 seconds after the last turn of a pass. It only has to outlast the
+gaps *between* turns — MCP tool calls, sub-second — so it can be short.
+
+Without it, Ollama's default is 5 minutes. With `-watch 5m` that is the same
+period as the reconcile loop, so the model never unloaded and stayed resident
+continuously; on a shared 14GB dev box that starved the MicroK8s control
+plane. Measured on that box (CPU inference, no GPU):
+
+- `gemma4:e2b-it-q4_K_M` costs ~3GB of anonymous RSS while loaded. The
+  ~6.7GB Ollama reports is mostly mmap'd weights sitting in reclaimable page
+  cache.
+- One diagnose pass takes ~2m45s (two to three chat turns at roughly a minute
+  each), so with `-watch 5m` the model is resident about 65% of the time.
+  Faster inference or a longer `-watch` are the only bigger levers.
+
+If you want the model to stay warm (e.g. an interactive single pass), the
+constant is the one place to change.
 
 ## Configuration
 
