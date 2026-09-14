@@ -46,10 +46,11 @@ type ToolFunction struct {
 
 // ChatRequest is the request body for POST /api/chat.
 type ChatRequest struct {
-	Model    string    `json:"model"`
-	Messages []Message `json:"messages"`
-	Tools    []Tool    `json:"tools,omitempty"`
-	Stream   bool      `json:"stream"`
+	Model     string    `json:"model"`
+	Messages  []Message `json:"messages"`
+	Tools     []Tool    `json:"tools,omitempty"`
+	Stream    bool      `json:"stream"`
+	KeepAlive string    `json:"keep_alive,omitempty"` // e.g. "2m"; Ollama defaults to 5m if unset
 }
 
 // ChatResponse is the response body for a non-streaming POST /api/chat.

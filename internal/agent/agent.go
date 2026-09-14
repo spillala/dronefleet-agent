@@ -14,6 +14,14 @@ import (
 
 const maxIterations = 8
 
+// ollamaKeepAlive bounds how long the model stays resident after a Diagnose
+// pass finishes. Long enough to cover every Chat call within one pass
+// without reloading between tool-call turns; short enough to free the
+// model's ~8GB RSS well before the next reconcile cycle (watchInterval,
+// typically 5m) starts. Ollama's own default (5m) never unloads on this
+// schedule, which is what starved the node under memory pressure.
+const ollamaKeepAlive = "2m"
+
 // diagnosticTools is the allow-list of MCP tools exposed to the model.
 // recover_drone is deliberately excluded: remediation is Agent 2's job
 // (Phase 4), not Agent 1's.
@@ -66,9 +74,10 @@ func (a *Agent) Diagnose(ctx context.Context, instruction string) (string, error
 
 	for i := 0; i < maxIterations; i++ {
 		resp, err := a.llm.Chat(ctx, llm.ChatRequest{
-			Model:    a.model,
-			Messages: messages,
-			Tools:    tools,
+			Model:     a.model,
+			Messages:  messages,
+			Tools:     tools,
+			KeepAlive: ollamaKeepAlive,
 		})
 		if err != nil {
 			return "", fmt.Errorf("chat turn %d: %w", i, err)
