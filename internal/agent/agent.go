@@ -14,13 +14,13 @@ import (
 
 const maxIterations = 8
 
-// ollamaKeepAlive bounds how long the model stays resident after a Diagnose
-// pass finishes. Long enough to cover every Chat call within one pass
-// without reloading between tool-call turns; short enough to free the
-// model's ~8GB RSS well before the next reconcile cycle (watchInterval,
-// typically 5m) starts. Ollama's own default (5m) never unloads on this
-// schedule, which is what starved the node under memory pressure.
-const ollamaKeepAlive = "2m"
+// ollamaKeepAlive bounds how long the model stays resident after each Chat
+// call. It only has to outlast the gap between turns within one Diagnose
+// pass — an MCP tool call, sub-second — so it can be short. Every second
+// here is a second of the ~3GB model resident after the pass ends; on CPU a
+// pass already takes ~2m45s of a 5m reconcile cycle. Ollama's own default
+// (5m) never unloaded on this schedule and starved the node.
+const ollamaKeepAlive = "30s"
 
 // diagnosticTools is the allow-list of MCP tools exposed to the model.
 // recover_drone is deliberately excluded: remediation is Agent 2's job
